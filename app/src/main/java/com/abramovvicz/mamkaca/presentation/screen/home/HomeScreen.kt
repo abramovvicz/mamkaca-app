@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,52 +26,73 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.abramovvicz.mamkaca.domain.model.AnswerType
+import com.abramovvicz.mamkaca.presentation.viewmodel.HomeIntent
+import com.abramovvicz.mamkaca.presentation.viewmodel.HomeUIState
+import com.abramovvicz.mamkaca.presentation.viewmodel.HomeViewModel
+import org.koin.androidx.compose.koinViewModel
 
 /**
  * Główny ekran aplikacji z pytaniem "Masz dziś kaca?"
  */
 @Composable
 fun HomeScreen() {
-    var answerState by remember { mutableStateOf<AnswerState>(AnswerState.Unanswered) }
-    var note by remember { mutableStateOf("") }
+    // Pobieramy ViewModel za pomocą Koin
+    val viewModel: HomeViewModel = koinViewModel()
+    
+    // Obserwujemy stan UI
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Obserwujemy stan formularza
+    val formState by viewModel.formState.collectAsState()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        when (val state = answerState) {
-            is AnswerState.Unanswered -> {
+        when (val state = uiState) {
+            is HomeUIState.Loading -> {
+                // Ekran ładowania
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            
+            is HomeUIState.ReadyToAnswer -> {
+                // Ekran z pytaniem
                 QuestionScreen(
                     onAnswerYes = {
-                        answerState = AnswerState.AnsweringYes
+                        // Odpowiedź "Tak" - przejdź do ekranu z notatką
+                        viewModel.handleIntent(HomeIntent.UpdateNote(""))
+                        viewModel.handleIntent(HomeIntent.SubmitAnswer(AnswerType.YES))
                     },
                     onAnswerNo = {
-                        // W przyszłości: zapis do bazy danych
-                        answerState = AnswerState.Answered(AnswerType.NO)
+                        // Odpowiedź "Nie" - zapisz od razu
+                        viewModel.handleIntent(HomeIntent.SubmitAnswer(AnswerType.NO))
                     }
                 )
             }
-            is AnswerState.AnsweringYes -> {
-                YesAnswerDetailsScreen(
-                    note = note,
-                    onNoteChange = { note = it },
-                    onSubmit = {
-                        // W przyszłości: zapis do bazy danych
-                        answerState = AnswerState.Answered(AnswerType.YES)
-                    },
-                    onCancel = {
-                        answerState = AnswerState.Unanswered
-                    }
-                )
-            }
-            is AnswerState.Answered -> {
+            
+            is HomeUIState.AnswerSaved -> {
+                // Ekran po zapisaniu odpowiedzi
                 AnsweredScreen(
                     answerType = state.answerType,
                     onReset = {
-                        // Tylko dla celów demonstracyjnych - w produkcji użytkownik
-                        // nie powinien móc zmieniać odpowiedzi tego samego dnia
-                        note = ""
-                        answerState = AnswerState.Unanswered
+                        // Tylko do celów demonstracyjnych - resetowanie odpowiedzi
+                        viewModel.handleIntent(HomeIntent.ResetAnswer)
+                    }
+                )
+            }
+            
+            is HomeUIState.Error -> {
+                // Ekran z błędem
+                ErrorScreen(
+                    message = state.message,
+                    onRetry = {
+                        // Ponowne załadowanie
+                        viewModel.loadTodayAnswer()
                     }
                 )
             }
@@ -105,14 +128,18 @@ fun QuestionScreen(
         ) {
             Button(
                 onClick = onAnswerYes,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             ) {
                 Text("TAK")
             }
             
             Button(
                 onClick = onAnswerNo,
-                modifier = Modifier.weight(1f).padding(start = 8.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
             ) {
                 Text("NIE")
             }
@@ -160,14 +187,18 @@ fun YesAnswerDetailsScreen(
         ) {
             Button(
                 onClick = onCancel,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             ) {
                 Text("Anuluj")
             }
             
             Button(
                 onClick = onSubmit,
-                modifier = Modifier.weight(1f).padding(start = 8.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
             ) {
                 Text("Zapisz")
             }
@@ -214,10 +245,36 @@ fun AnsweredScreen(
 }
 
 /**
- * Stany odpowiedzi na ekranie głównym
+ * Ekran wyświetlany w przypadku błędu
  */
-sealed class AnswerState {
-    object Unanswered : AnswerState()
-    object AnsweringYes : AnswerState()
-    data class Answered(val answerType: AnswerType) : AnswerState()
+@Composable
+fun ErrorScreen(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Wystąpił błąd",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        
+        Button(onClick = onRetry) {
+            Text("Spróbuj ponownie")
+        }
+    }
 }

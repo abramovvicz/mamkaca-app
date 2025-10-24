@@ -2,7 +2,9 @@ package com.abramovvicz.mamkaca.domain.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * Model reprezentujący użytkownika aplikacji.
@@ -24,7 +26,7 @@ data class User(
          * Tworzy nowy obiekt User z domyślnymi wartościami dla nowo utworzonego użytkownika.
          */
         fun createNew(id: String, email: String?): User {
-            val now = ZonedDateTime.now().toString()
+            val now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
             return User(
                 id = id,
                 email = email,

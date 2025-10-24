@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,9 +8,16 @@ plugins {
     kotlin("plugin.serialization") version "2.1.20"
 }
 
+val localProperties = Properties().apply {
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) {
+        propsFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.abramovvicz.mamkaca"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.abramovvicz.mamkaca"
@@ -16,7 +25,10 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: ""
+        val supabaseKey = localProperties.getProperty("SUPABASE_KEY") ?: ""
+        buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl.replace("\"", "\\\"")}\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"${supabaseKey.replace("\"", "\\\"")}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -40,6 +52,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     ksp {
@@ -57,14 +70,14 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.ui:ui:1.5.3")
-    implementation("androidx.compose.material:material:1.5.3")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.5.3")
+    implementation("androidx.compose.ui:ui:1.9.3")
+    implementation("androidx.compose.material:material:1.9.3")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.9.3")
     implementation("androidx.activity:activity-compose:1.7.2")
-    implementation("androidx.navigation:navigation-compose:2.7.5")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
-    implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
+    implementation("androidx.navigation:navigation-compose:2.9.5")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.4")
+    implementation("io.github.cdimascio:dotenv-kotlin:6.5.1")
 
 
     // Coroutines
@@ -77,15 +90,14 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Supabase
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:1.3.2")
-    implementation("io.github.jan-tennert.supabase:gotrue-kt:1.3.2")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:1.3.2")
-    implementation("io.ktor:ktor-client-android:2.3.5")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.2.5")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:3.2.5")
+    implementation("io.ktor:ktor-client-android:3.3.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
 
     // Dependency Injection
-    implementation("io.insert-koin:koin-android:3.5.0")
-    implementation("io.insert-koin:koin-androidx-compose:3.5.0")
+    implementation("io.insert-koin:koin-android:4.1.1")
+    implementation("io.insert-koin:koin-androidx-compose:4.1.1")
 
     // Testing
     testImplementation(libs.junit)

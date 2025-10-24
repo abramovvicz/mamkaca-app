@@ -4,7 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 /**
@@ -51,7 +53,7 @@ data class Answer(
             note: String? = null,
             answerSource: AnswerSource = AnswerSource.MANUAL
         ): Answer {
-            val now = ZonedDateTime.now()
+            val now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
             val date = LocalDate.now().toString()
             val time = LocalTime.now().toString()
             
