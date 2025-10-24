@@ -15,9 +15,12 @@ val viewModelModule = module {
         HomeViewModel(answerRepository = get()) 
     }
     
-    // StatsViewModel z wstrzykniętym AnswerRepository
+    // StatsViewModel z wstrzykniętymi repozytoriami
     viewModel { 
-        StatsViewModel(answerRepository = get()) 
+        StatsViewModel(
+            answerRepository = get(),
+            statisticsRepository = get()
+        ) 
     }
     
     // ProfileViewModel z wstrzykniętym UserRepository

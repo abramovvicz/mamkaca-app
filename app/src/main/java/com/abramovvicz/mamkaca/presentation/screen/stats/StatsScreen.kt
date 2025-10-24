@@ -27,9 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.abramovvicz.mamkaca.presentation.viewmodel.MonthStat
 import com.abramovvicz.mamkaca.presentation.viewmodel.StatsIntent
 import com.abramovvicz.mamkaca.presentation.viewmodel.StatsUIState
 import com.abramovvicz.mamkaca.presentation.viewmodel.StatsViewModel
+import com.abramovvicz.mamkaca.presentation.viewmodel.WeekdayStat
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
 
@@ -65,6 +67,26 @@ fun StatsScreen() {
                     stats = state,
                     onPeriodSelected = { days ->
                         viewModel.handleIntent(StatsIntent.FilterByPeriod(days))
+                    }
+                )
+            }
+            
+            is StatsUIState.MonthlyStatsLoaded -> {
+                // Ekran z załadowanymi statystykami miesięcznymi
+                MonthlyStatsContent(
+                    stats = state,
+                    onBackToStats = {
+                        viewModel.handleIntent(StatsIntent.LoadStats)
+                    }
+                )
+            }
+            
+            is StatsUIState.WeekdayDistributionLoaded -> {
+                // Ekran z rozkładem dni tygodnia
+                WeekdayDistributionContent(
+                    stats = state,
+                    onBackToStats = {
+                        viewModel.handleIntent(StatsIntent.LoadStats)
                     }
                 )
             }
@@ -182,6 +204,175 @@ fun StatsContent(
                         "Aktualny ciąg", 
                         "${stats.currentStreakDays} ${getDayText(stats.currentStreakDays)}"
                     )
+                    
+                    if (stats.lastHangoverDate != null) {
+                        StatisticRow(
+                            "Ostatni kac",
+                            stats.lastHangoverDate
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Zawartość ekranu ze statystykami miesięcznymi
+ */
+@Composable
+fun MonthlyStatsContent(
+    stats: StatsUIState.MonthlyStatsLoaded,
+    onBackToStats: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = "Statystyki miesięczne ${stats.yearStats}",
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
+        
+        Button(
+            onClick = onBackToStats,
+            modifier = Modifier.align(Alignment.Start)
+        ) {
+            Text("Powrót do statystyk ogólnych")
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (stats.monthlyData.all { it.hangoverCount == 0 }) {
+            // Brak danych
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Brak danych w wybranym roku",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Statystyki miesięczne
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Liczba dni z kacem według miesięcy",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    stats.monthlyData.forEach { monthStat ->
+                        StatisticRow(
+                            label = monthStat.monthName,
+                            value = "${monthStat.hangoverCount} ${getDayText(monthStat.hangoverCount)}"
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Zawartość ekranu z rozkładem dni tygodnia
+ */
+@Composable
+fun WeekdayDistributionContent(
+    stats: StatsUIState.WeekdayDistributionLoaded,
+    onBackToStats: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = "Rozkład dni tygodnia",
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        )
+        
+        Button(
+            onClick = onBackToStats,
+            modifier = Modifier.align(Alignment.Start)
+        ) {
+            Text("Powrót do statystyk ogólnych")
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (stats.weekdayData.all { it.hangoverCount == 0 }) {
+            // Brak danych
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Brak danych dla dni tygodnia",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Statystyki dni tygodnia
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Liczba dni z kacem według dni tygodnia",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    stats.weekdayData.forEach { weekdayStat ->
+                        StatisticRow(
+                            label = weekdayStat.dayName,
+                            value = "${weekdayStat.hangoverCount}"
+                        )
+                    }
+                    
+                    // Dodajmy też maksymalną wartość dla czytelności
+                    val maxDay = stats.weekdayData.maxByOrNull { it.hangoverCount }
+                    if (maxDay != null && maxDay.hangoverCount > 0) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Najczęściej masz kaca w: ${maxDay.dayName}",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }
